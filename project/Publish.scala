@@ -22,7 +22,9 @@
 
 import sbt._
 import sbt.Keys._
+import xerial.sbt.Sonatype.SonatypeKeys._
 import scala.language.postfixOps
+
 
 object Publish {
   def targetRepository: Def.Initialize[Option[Resolver]] = Def.setting {
@@ -33,9 +35,9 @@ object Publish {
     Some(resolver)
   }
 
-  lazy val settings = Seq(
+  lazy val settings = xerial.sbt.Sonatype.sonatypeSettings ++ Seq(
+    profileName := "com.reactific",
     publishMavenStyle := true,
-    publishTo := targetRepository.value,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT")),
