@@ -25,7 +25,6 @@ package com.reactific.hsp
 import java.io.PrintStream
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.immutable.Queue
 import scala.collection.mutable
 
 /** Profiler Module For Manual Code Instrumentation
@@ -45,8 +44,8 @@ object Profiler {
   var profiling_enabled = true
 
   class ThreadInfo {
-    var profile_data = Queue.empty[(Int, Long, Long, String, Int)]
-    val depth_tracker = new AtomicInteger(0)
+    var profile_data = mutable.Queue.empty[(Int, Long, Long, String, Int)]
+    var depth_tracker : Int = 0
   }
 
   val thread_infos = mutable.Map.empty[Thread, ThreadInfo]
@@ -63,22 +62,39 @@ object Profiler {
     }
   }
 
-  private val id_counter = new AtomicInteger(0)
+  private final def in_profile_context : Boolean = {
+    val ti = tinfo.get()
+    ti.depth_tracker > 0
+  }
+
+  private final def require_non_profile_context(where : String) : Unit = {
+    if (in_profile_context) {
+      throw new IllegalStateException(s"$where cannot be called from profile context")
+    }
+  }
+
+  private var id_counter : Int = 0
 
   def profile[R](what : ⇒ String)(block : ⇒ R) : R = {
     if (profiling_enabled) {
       val ti = tinfo.get()
-      val id = id_counter.incrementAndGet()
-      val depth = ti.depth_tracker.getAndIncrement
-      val t0 = System.nanoTime()
+      val id : Int = Profiler.synchronized {
+        id_counter += 1
+        id_counter
+      }
+      val depth = ti.depth_tracker
+      ti.depth_tracker += 1
+      var t0 = 0L
+      var t1 = 0L
       try {
-        block // call-by-name
+        t0 = System.nanoTime()
+        val r : R = block // call-by-name
+        t1 = System.nanoTime()
+        r
       } finally {
-        val t1 = System.nanoTime()
-        ti.depth_tracker.decrementAndGet()
-        synchronized {
-          ti.profile_data = ti.profile_data.enqueue((id, t0, t1, what, depth))
-        }
+        val ti = tinfo.get()
+        ti.depth_tracker -= 1
+        ti.profile_data.enqueue((id, t0, t1, what, depth))
       }
     } else {
       block
@@ -86,6 +102,7 @@ object Profiler {
   }
 
   def get_one_item(itemName : String) : (Int, Double) = {
+    require_non_profile_context("get_one_item")
     if (profiling_enabled) {
       var count : Int = 0
       var sum : Double = 0.0
@@ -102,22 +119,52 @@ object Profiler {
   }
 
   def format_one_item(itemName : String) : String = {
+    require_non_profile_context("format_one_item")
     if (profiling_enabled) {
-      var count : Int = 0
-      var sum : Long = 0
-      for ((thread, ti) ← thread_infos) {
-        for ((id, t0, t1, msg, depth) ← ti.profile_data if msg == itemName) {
-          count += 1
-          sum += (t1 - t0)
-        }
-      }
+      val (count, sum) = get_one_item(itemName)
       "count=" + count + ", sum=" + (sum / 1000000.0D).formatted("%1$ 10.3f") + ", avg=" + (sum / 1000000.0D / count).formatted("%1$ 10.3f") + "  (" + itemName + ")"
     } else {
       ""
     }
   }
 
+  type SummaryMap = Seq[(String, Int, Int, Double)]
+  def summarize_profile_data : SummaryMap = {
+    require_non_profile_context("summarize_profile_data")
+    val mb = new mutable.HashMap[(Int, String), (Int, Int, Double)]()
+    for ((thread, ti) ← thread_infos) {
+      for ((id, t0, t1, msg, depth) ← ti.profile_data.sortBy { x ⇒ x._1 }) {
+        val time_len : Double = t1 - t0
+        mb.get(depth → msg) match {
+          case Some((_id, count, sum)) ⇒ mb.put(depth → msg, (_id, count + 1, sum + time_len))
+          case None ⇒ mb.put(depth → msg, (id, 1, time_len))
+        }
+      }
+    }
+    mb.view.toSeq.sortBy { case ((depth, msg), (id, count, sum)) ⇒ id } map {
+      case ((depth, msg), (id, count, sum)) ⇒ (msg, depth, count, sum)
+    }
+  }
+
+  def format_profile_summary : String = {
+    require_non_profile_context("format_profile_summary")
+    val sb = new StringBuilder(4096)
+    for ((msg, depth, count, sum) ← summarize_profile_data) {
+      sb.append((sum / 1000000.0D).formatted("%1$ 12.3f")).append(" / ").append(count.formatted("%1$ 7d")).append(" = ").
+        append((sum / 1000000.0D / count).formatted("%1$ 10.3f")).append(" - ")
+      for (i ← 1 to depth) sb.append(".")
+      sb.append(msg).append("\n")
+    }
+    sb.toString()
+  }
+
+  def print_profile_summary(out : PrintStream) : Unit = {
+    require_non_profile_context("print_profile_summary")
+    out.print(format_profile_summary)
+  }
+
   def format_profile_data : StringBuilder = {
+    require_non_profile_context("format_profile_data")
     val str = new StringBuilder(4096)
     if (profiling_enabled) {
       for ((thread, ti) ← thread_infos) {
@@ -136,10 +183,12 @@ object Profiler {
   }
 
   def reset_profile_data() : Unit = {
+    require_non_profile_context("reset_profile_data")
     thread_infos.clear()
   }
 
   def print_profile_data(out : PrintStream) = {
+    require_non_profile_context("print_profile_data")
     if (profiling_enabled) {
       out.print(format_profile_data.toString())
     }
