@@ -24,9 +24,9 @@ package com.reactific.hsp
 
 import java.io.PrintStream
 
-import scala.collection.generic.{CanBuildFrom, FilterMonadic}
+import scala.collection.generic.{ CanBuildFrom, FilterMonadic }
 import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 /** Profiler Module For Manual Code Instrumentation
   * This module provides thread aware profiling at microsecond level granularity with manually inserted code Instrumentation. You can instrument a
@@ -78,13 +78,13 @@ object Profiler {
 
   @inline private def nextThreadInfo() : (ThreadInfo, Int, Int) = {
     val ti = tinfo.get()
-    Profiler.synchronized {id_counter += 1 }
+    Profiler.synchronized { id_counter += 1 }
     val depth = ti.depth_tracker
     ti.depth_tracker += 1
     (ti, id_counter, depth)
   }
 
-  @inline private def record(id: Int, depth: Int, what: String, t0: Long, t1: Long) = {
+  @inline private def record(id : Int, depth : Int, what : String, t0 : Long, t1 : Long) = {
     val ti = tinfo.get()
     ti.depth_tracker -= 1
     ti.profile_data.enqueue((id, t0, t1, what, depth))
@@ -125,7 +125,7 @@ object Profiler {
   }
 */
 
-  def futureMap[S,B](what : ⇒ String, future: ⇒ Future[S])(block: S ⇒ B)(implicit ec: ExecutionContext) : Future[B] = {
+  def futureMap[S, B](what : ⇒ String, future : ⇒ Future[S])(block : S ⇒ B)(implicit ec : ExecutionContext) : Future[B] = {
     if (profiling_enabled) {
       val t0 = System.nanoTime()
       future.map { x ⇒
@@ -170,30 +170,34 @@ object Profiler {
     }
   }
 
-  type SummaryMap = Seq[(String, Int, Int, Double)]
+  type SummaryMap = Seq[(String, Int, Int, Double, Double, Double)]
   def summarize_profile_data : SummaryMap = {
     require_non_profile_context("summarize_profile_data")
-    val mb = new mutable.HashMap[(Int, String), (Int, Int, Double)]()
+    val mb = new mutable.HashMap[(Int, String), (Int, Int, Double, Double, Double)]()
     for ((thread, ti) ← thread_infos) {
       for ((id, t0, t1, msg, depth) ← ti.profile_data.sortBy { x ⇒ x._1 }) {
         val time_len : Double = t1 - t0
         mb.get(depth → msg) match {
-          case Some((_id, count, sum)) ⇒ mb.put(depth → msg, (_id, count + 1, sum + time_len))
-          case None ⇒ mb.put(depth → msg, (id, 1, time_len))
+          case Some((_id, count, sum, min, max)) ⇒
+            mb.put(depth → msg, (_id, count + 1, sum + time_len, Math.min(min, time_len), Math.max(max, time_len)))
+          case None ⇒ mb.put(depth → msg, (id, 1, time_len, time_len, time_len))
         }
       }
     }
-    mb.view.toSeq.sortBy { case ((depth, msg), (id, count, sum)) ⇒ id } map {
-      case ((depth, msg), (id, count, sum)) ⇒ (msg, depth, count, sum)
+    mb.view.toSeq.sortBy { case ((depth, msg), (id, count, sum, min, max)) ⇒ id } map {
+      case ((depth, msg), (id, count, sum, min, max)) ⇒ (msg, depth, count, sum, min, max)
     }
   }
 
   def format_profile_summary : String = {
     require_non_profile_context("format_profile_summary")
     val sb = new StringBuilder(4096)
-    for ((msg, depth, count, sum) ← summarize_profile_data) {
+    for ((msg, depth, count, sum, min, max) ← summarize_profile_data) {
       sb.append((sum / 1000000.0D).formatted("%1$ 12.3f")).append(" / ").append(count.formatted("%1$ 7d")).append(" = ").
-        append((sum / 1000000.0D / count).formatted("%1$ 10.3f")).append(" - ")
+        append((sum / 1000000.0D / count).formatted("%1$ 10.3f")).
+        append(", min=").append((min / 1000000.0D).formatted("%1$ 10.3f")).
+        append(", max=").append((max / 1000000.0D).formatted("%1$ 10.3f")).
+        append(" - ")
       for (i ← 1 to depth) sb.append(".")
       sb.append(msg).append("\n")
     }
