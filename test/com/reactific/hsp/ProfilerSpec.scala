@@ -1,8 +1,12 @@
 package com.reactific.hsp
 
 import org.specs2.mutable.Specification
+import org.specs2.time.NoTimeConversions
 
-class ProfilerSpec extends Specification {
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+
+class ProfilerSpec extends Specification with NoTimeConversions {
 
   sequential
 
@@ -28,6 +32,18 @@ class ProfilerSpec extends Specification {
 
     "Extracting In Profiler.profile context is not permitted" in {
       Profiler.profile("oops") { Profiler.format_profile_summary } must throwA[IllegalStateException]
+    }
+
+    "capture wait and processing time of a Future.map" in {
+      val future : Future[Double] = Profiler.futureMap("test", Future.successful(42)) { x ⇒ x.toDouble * 2.0 }
+      val double = Await.result(future, 1.second)
+      double must beEqualTo(84.0)
+      val (wait_count, wait_sum) = Profiler.get_one_item("test.wait")
+      val (count, sum) = Profiler.get_one_item("test")
+      count must beEqualTo(1)
+      wait_count must beEqualTo(1)
+      sum must beLessThan(100000.0)
+      wait_sum must beGreaterThan(sum)
     }
   }
 

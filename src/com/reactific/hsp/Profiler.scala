@@ -23,9 +23,10 @@
 package com.reactific.hsp
 
 import java.io.PrintStream
-import java.util.concurrent.atomic.AtomicInteger
 
+import scala.collection.generic.{CanBuildFrom, FilterMonadic}
 import scala.collection.mutable
+import scala.concurrent.{ExecutionContext, Future}
 
 /** Profiler Module For Manual Code Instrumentation
   * This module provides thread aware profiling at microsecond level granularity with manually inserted code Instrumentation. You can instrument a
@@ -75,15 +76,23 @@ object Profiler {
 
   private var id_counter : Int = 0
 
+  @inline private def nextThreadInfo() : (ThreadInfo, Int, Int) = {
+    val ti = tinfo.get()
+    Profiler.synchronized {id_counter += 1 }
+    val depth = ti.depth_tracker
+    ti.depth_tracker += 1
+    (ti, id_counter, depth)
+  }
+
+  @inline private def record(id: Int, depth: Int, what: String, t0: Long, t1: Long) = {
+    val ti = tinfo.get()
+    ti.depth_tracker -= 1
+    ti.profile_data.enqueue((id, t0, t1, what, depth))
+  }
+
   def profile[R](what : ⇒ String)(block : ⇒ R) : R = {
     if (profiling_enabled) {
-      val ti = tinfo.get()
-      val id : Int = Profiler.synchronized {
-        id_counter += 1
-        id_counter
-      }
-      val depth = ti.depth_tracker
-      ti.depth_tracker += 1
+      val (ti, id, depth) = nextThreadInfo()
       var t0 = 0L
       var t1 = 0L
       try {
@@ -92,12 +101,45 @@ object Profiler {
         t1 = System.nanoTime()
         r
       } finally {
-        val ti = tinfo.get()
-        ti.depth_tracker -= 1
-        ti.profile_data.enqueue((id, t0, t1, what, depth))
+        record(id, depth, what, t0, t1)
       }
     } else {
       block
+    }
+  }
+
+  /*
+  trait FilterMonadic[+A, +Repr] extends Any {
+    def map[B, That](f: A => B)(implicit bf: CanBuildFrom[Repr, B, That]): That
+  def map[A,Repr,B,That](what : ⇒ String, coll: FilterMonadic[A,Repr])
+    ( block : A ⇒ B)
+    (implicit bf: CanBuildFrom[Repr, B, That]) : That =
+  {
+    if (profiling_enabled) {
+      val (ti, id, depth) = nextThreadInfo()
+
+    }
+    else {
+      coll.map(block)
+    }
+  }
+*/
+
+  def futureMap[S,B](what : ⇒ String, future: ⇒ Future[S])(block: S ⇒ B)(implicit ec: ExecutionContext) : Future[B] = {
+    if (profiling_enabled) {
+      val t0 = System.nanoTime()
+      future.map { x ⇒
+        val t1 = System.nanoTime()
+        val r = block(x)
+        val t2 = System.nanoTime()
+        val (ti, id, depth) = nextThreadInfo()
+        record(id, depth, what + ".wait", t0, t1)
+        val (ti2, id2, depth2) = nextThreadInfo()
+        record(id2, depth2, what, t1, t2)
+        r
+      }
+    } else {
+      future.map(block)
     }
   }
 
