@@ -24,9 +24,10 @@ package com.reactific.hsp
 
 import java.io.PrintStream
 
-import scala.collection.generic.{ CanBuildFrom, FilterMonadic }
 import scala.collection.mutable
 import scala.concurrent.{ ExecutionContext, Future }
+
+object Profiler extends Profiler(true)
 
 /** Profiler Module For Manual Code Instrumentation
   * This module provides thread aware profiling at microsecond level granularity with manually inserted code Instrumentation. You can instrument a
@@ -40,16 +41,14 @@ import scala.concurrent.{ ExecutionContext, Future }
   * Note that when profiling_enabled is false, there is almost zero overhead. In particular, expressions involving computing the argument to
   * profile method will not be computed because it is a functional by-name argument that is not evaluated if profiling is disabled.
   */
-object Profiler {
+case class Profiler(profiling_enabled : Boolean = true) {
 
-  var profiling_enabled = true
-
-  class ThreadInfo {
+  private class ThreadInfo {
     var profile_data = mutable.Queue.empty[(Int, Long, Long, String, Int)]
     var depth_tracker : Int = 0
   }
 
-  val thread_infos = mutable.Map.empty[Thread, ThreadInfo]
+  private val thread_infos = mutable.Map.empty[Thread, ThreadInfo]
 
   private final val tinfo = new ThreadLocal[ThreadInfo] {
     override def initialValue() : ThreadInfo = {
@@ -140,6 +139,19 @@ object Profiler {
       }
     } else {
       future.map(block)
+    }
+  }
+
+  def asyncStart : Long = {
+    System.nanoTime()
+  }
+
+  def asyncEnd(what : ⇒ String, t0 : Long) = {
+    if (profiling_enabled) {
+      val t1 = System.nanoTime()
+      val (ti, id, depth) = nextThreadInfo()
+      ti.depth_tracker -= 1
+      ti.profile_data.enqueue((id, t0, t1, what, depth))
     }
   }
 
