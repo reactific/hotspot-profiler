@@ -4,9 +4,10 @@ import org.specs2.mutable.Specification
 import org.specs2.time.NoTimeConversions
 
 import scala.concurrent.{ Await, Future }
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ProfilerSpec extends Specification with NoTimeConversions {
+class ProfilerSpec extends Specification {
 
   sequential
 

@@ -20,35 +20,23 @@
  * SOFTWARE.
  */
 
+import com.reactific.sbt.ProjectPlugin.autoImport._
+import com.reactific.sbt.ProjectPlugin
+
 import sbt._
 import sbt.Keys._
 import scala.language.postfixOps
 
-import com.reactific.sbt.ProjectPlugin.autoImport._
-
 object HSPBuild extends Build {
 
-  val repositories = Seq(
-    "Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/",
-    "Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/"
-  )
-
-  val specs           = "org.specs2"          %% "specs2-core"                  % "2.4.15"     % "test"
-
-  val dependencies = Seq(specs)
-
-  val buildSettings : Seq[sbt.Def.Setting[_]] = Defaults.coreDefaultSettings
-
   lazy val root = sbt.Project("hotspot-profiler", file(".")).
-      settings(buildSettings:_*).
-      settings(
-        organization := "com.reactific",
-        copyrightHolder := "Reactific Software LLC",
-        copyrightYears := Seq(2015),
-        developerUrl := url("http://reactific.com/"),
-        titleForDocs := "Hot Spot Profiler",
-        codePackage := "com.reactific.hsp",
-        resolvers := repositories,
-        libraryDependencies ++= dependencies
-      )
+    enablePlugins(ProjectPlugin).
+    settings(
+      organization := "com.reactific",
+      copyrightHolder := "Reactific Software LLC",
+      copyrightYears := Seq(2015),
+      developerUrl := url("http://reactific.com/"),
+      titleForDocs := "Hot Spot Profiler",
+      codePackage := "com.reactific.hsp"
+    )
 }
