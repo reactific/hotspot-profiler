@@ -24,70 +24,31 @@ import sbt._
 import sbt.Keys._
 import scala.language.postfixOps
 
-// Shell prompt which show the current project,
-// git branch and build version
-object ShellPrompt {
-  object devnull extends ProcessLogger {
-    def info(s: => String) {}
-
-    def error(s: => String) {}
-
-    def buffer[T](f: => T): T = f
-  }
-
-  def currBranch = (
-    ("git status -sb" lines_! devnull headOption)
-      getOrElse "-" stripPrefix "## ")
-
-  val buildShellPrompt = {
-    (state: State) =>
-    {
-      val currProject = Project.extract(state).currentProject.id
-      "%s:%s:%s> ".format(
-        currProject, currBranch, HSPBuild.hsp_version)
-    }
-  }
-}
+import com.reactific.sbt.ProjectPlugin.autoImport._
 
 object HSPBuild extends Build {
-  val name = "hotspot-profiler"
-  val hsp_version = "0.1.0-SNAPSHOT"
 
-  val buildSettings : Seq[sbt.Def.Setting[_]] = Defaults.coreDefaultSettings ++
-    Seq(
-    ) ++ Publish.settings ++ Docs.settings
+  val repositories = Seq(
+    "Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/",
+    "Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/"
+  )
 
-  lazy val HotSpotProfiler =
-    Project(name, file(".")).
-      settings(Defaults.coreDefaultSettings:_*).
+  val specs           = "org.specs2"          %% "specs2-core"                  % "2.4.15"     % "test"
+
+  val dependencies = Seq(specs)
+
+  val buildSettings : Seq[sbt.Def.Setting[_]] = Defaults.coreDefaultSettings
+
+  lazy val root = sbt.Project("hotspot-profiler", file(".")).
+      settings(buildSettings:_*).
       settings(
         organization := "com.reactific",
-        resolvers := Dependencies.resolvers,
-        version := hsp_version,
-        scalaVersion := "2.11.5",
-        javaOptions in test ++= Seq("-Xmx512m", "-XX:MaxPermSize=512m"),
-        scalacOptions ++= Seq("-feature", "-unchecked", "-deprecation", "-target:jvm-1.7"),
-        scalacOptions in(Compile, doc) ++=
-          Seq("-feature", "-unchecked", "-deprecation", "-diagrams", "-implicits"),
-        scalacOptions in(Compile, doc) ++= Opts.doc.title("Reactific HotSpot Profiler API"),
-        scalacOptions in(Compile, doc) ++= Opts.doc.version(hsp_version),
-        sourceDirectories in Compile := Seq(baseDirectory.value / "src"),
-        sourceDirectories in Test := Seq(baseDirectory.value / "test"),
-        unmanagedSourceDirectories in Compile := Seq(baseDirectory.value / "src"),
-        unmanagedSourceDirectories in Test := Seq(baseDirectory.value / "test"),
-        scalaSource in Compile := baseDirectory.value / "src",
-        scalaSource in Test := baseDirectory.value / "test",
-        javaSource in Compile := baseDirectory.value / "src",
-        javaSource in Test := baseDirectory.value / "test",
-        resourceDirectory in Compile := baseDirectory.value / "src/resources",
-        resourceDirectory in Test := baseDirectory.value / "test/resources",
-        shellPrompt := ShellPrompt.buildShellPrompt,
-        fork in Test := false,
-        parallelExecution in Test := false,
-        logBuffered in Test := false,
-        ivyScala := ivyScala.value map {_.copy(overrideScalaVersion = true)},
-        libraryDependencies ++= Dependencies.all
-      ).
-      settings(Publish.settings:_*).
-      settings(Docs.settings:_*)
+        copyrightHolder := "Reactific Software LLC",
+        copyrightYears := Seq(2015),
+        developerUrl := url("http://reactific.com/"),
+        titleForDocs := "Hot Spot Profiler",
+        codePackage := "com.reactific.hsp",
+        resolvers := repositories,
+        libraryDependencies ++= dependencies
+      )
 }
