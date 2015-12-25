@@ -3,9 +3,7 @@
 [![Coverage Status](https://coveralls.io/repos/reactific/hotspot-profiler/badge.svg?branch=master)](https://coveralls.io/r/reactific/hotspot-profiler?branch=master)
 [![Release](https://img.shields.io/github/release/reactific/hotspot-profiler.svg?style=flat)](https://github.com/reactific/hotspot-profiler/releases)
 [![Downloads](https://img.shields.io/github/downloads/reactific/hotspot-profiler/latest/total.svg)](https://github.com/reactific/hotspot-profiler/releases)
-
 [![Join the chat at https://gitter.im/reactific/hotspot-profiler](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/reactific/hotspot-profiler?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Stories in Ready](https://badge.waffle.io/reactific/hotspot-profiler.svg?label=ready&title=Ready)](http://waffle.io/reactific/hotspot-profiler)
 
 Reactific HotSpot Profiler
 ==========================
@@ -35,5 +33,5 @@ log.debug(s"Profiling Results:\n${Profiler.format_profile_data.toString()}")
 ```
 to print out all the results in a nested format for each thread.
 
-Overhead is about 50 microseconds for each Profiler.profile call if profiling is enabled. When it is disabled, 
-overhead is exactly one boolean dereference in an if statement and a function call (minimal).  
+Overhead is about 50 microseconds for each Profiler.profile call if profiling is enabled. When it is disabled,
+overhead is exactly one boolean dereference in an if statement and a function call (minimal).
