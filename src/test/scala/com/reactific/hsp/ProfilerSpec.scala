@@ -143,25 +143,18 @@ class ProfilerSpec extends Specification with ProfilerTestTools {
     }
 
     "timedTest with logging works" in {
-      val profiler = Profiler("MyProfiler")
-      val result = timedTest(100000000, "timedTest", profiler, Some(logger)) { (profiler) ⇒
+      val profiler = Profiler("timedTest With Logging")
+      timedTest(100000000, "timedTest", profiler, Some(logger)) { (profiler) ⇒
         Thread.sleep(10)
         success
       }
-      val summary = profiler.format_profile_summary
-      summary.contains("timedTest") must beTrue
-      result
-
     }
     "timedTest with printing works" in {
-      val profiler = Profiler("MyProfiler")
-      val result = timedTest(100000000, "timedTest", profiler, print=true) { (profiler) ⇒
+      val profiler = Profiler("timedTest With Printing")
+      timedTest(100000000, "timedTest", profiler, print=true) { (profiler) ⇒
         Thread.sleep(10)
         success
       }
-      val summary = profiler.format_profile_summary
-      summary.contains("timedTest") must beTrue
-      result
     }
   }
 
