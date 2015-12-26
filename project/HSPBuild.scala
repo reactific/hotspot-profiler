@@ -26,17 +26,30 @@ import com.reactific.sbt.ProjectPlugin
 import sbt._
 import sbt.Keys._
 import scala.language.postfixOps
+import scoverage.{ScoverageKeys,ScoverageSbtPlugin}
 
 object HSPBuild extends Build {
 
+  val classesIgnoredByScoverage : String = Seq[String](
+    "<empty>", // Avoids warnings from scoverage
+    "EmptyTree$/null"
+  ).mkString(";")
+
+
   lazy val root = sbt.Project("hotspot-profiler", file(".")).
-    enablePlugins(ProjectPlugin).
+    enablePlugins(ProjectPlugin,ScoverageSbtPlugin).
     settings(
       organization := "com.reactific",
       copyrightHolder := "Reactific Software LLC",
       copyrightYears := Seq(2015),
       developerUrl := url("http://reactific.com/"),
       titleForDocs := "Hot Spot Profiler",
-      codePackage := "com.reactific.hsp"
-    )
+      codePackage := "com.reactific.hsp",
+      libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.12",
+      libraryDependencies +=  "ch.qos.logback" % "logback-classic" % "1.1.3" % "test",
+      ScoverageKeys.coverageFailOnMinimum := true,
+      ScoverageKeys.coverageExcludedPackages := classesIgnoredByScoverage,
+      ScoverageKeys.coverageMinimum := 90,
+      logLevel := Level.Info
+  )
 }

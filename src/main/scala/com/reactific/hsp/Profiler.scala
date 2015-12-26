@@ -24,10 +24,12 @@ package com.reactific.hsp
 
 import java.io.PrintStream
 
+import org.slf4j.Logger
+
 import scala.collection.mutable
 import scala.concurrent.{ ExecutionContext, Future }
 
-object Profiler extends Profiler(true)
+object Profiler extends Profiler("Profiler", true)
 
 /** Profiler Module For Manual Code Instrumentation
   * This module provides thread aware profiling at microsecond level granularity with manually inserted code Instrumentation. You can instrument a
@@ -41,7 +43,7 @@ object Profiler extends Profiler(true)
   * Note that when profiling_enabled is false, there is almost zero overhead. In particular, expressions involving computing the argument to
   * profile method will not be computed because it is a functional by-name argument that is not evaluated if profiling is disabled.
   */
-case class Profiler(profiling_enabled : Boolean = true) {
+case class Profiler(name : String = "Default", enabled : Boolean = true) {
 
   private class ThreadInfo {
     var profile_data = mutable.Queue.empty[(Int, Long, Long, String, Int)]
@@ -90,7 +92,7 @@ case class Profiler(profiling_enabled : Boolean = true) {
   }
 
   def profile[R](what : ⇒ String)(block : ⇒ R) : R = {
-    if (profiling_enabled) {
+    if (enabled) {
       val (ti, id, depth) = nextThreadInfo()
       var t0 = 0L
       var t1 = 0L
@@ -125,7 +127,7 @@ case class Profiler(profiling_enabled : Boolean = true) {
 */
 
   def futureMap[S, B](what : ⇒ String, future : ⇒ Future[S])(block : S ⇒ B)(implicit ec : ExecutionContext) : Future[B] = {
-    if (profiling_enabled) {
+    if (enabled) {
       val t0 = System.nanoTime()
       future.map { x ⇒
         val t1 = System.nanoTime()
@@ -147,7 +149,7 @@ case class Profiler(profiling_enabled : Boolean = true) {
   }
 
   def asyncEnd(what : ⇒ String, t0 : Long) = {
-    if (profiling_enabled) {
+    if (enabled) {
       val t1 = System.nanoTime()
       val (ti, id, depth) = nextThreadInfo()
       ti.depth_tracker -= 1
@@ -157,7 +159,7 @@ case class Profiler(profiling_enabled : Boolean = true) {
 
   def get_one_item(itemName : String) : (Int, Double) = {
     require_non_profile_context("get_one_item")
-    if (profiling_enabled) {
+    if (enabled) {
       var count : Int = 0
       var sum : Double = 0.0
       for ((thread, ti) ← thread_infos) {
@@ -174,9 +176,12 @@ case class Profiler(profiling_enabled : Boolean = true) {
 
   def format_one_item(itemName : String) : String = {
     require_non_profile_context("format_one_item")
-    if (profiling_enabled) {
+    if (enabled) {
       val (count, sum) = get_one_item(itemName)
-      "count=" + count + ", sum=" + (sum / 1000000.0D).formatted("%1$ 10.3f") + ", avg=" + (sum / 1000000.0D / count).formatted("%1$ 10.3f") + "  (" + itemName + ")"
+      val normalized_sum = sum / 1000000.0D
+      val sumF = normalized_sum.formatted("%1$ 10.3f")
+      val avgF = (normalized_sum / count).formatted("%1$ 10.3f")
+      s"count=$count, sum=$sumF, avg=$avgF  (" + itemName + ")"
     } else {
       ""
     }
@@ -205,7 +210,7 @@ case class Profiler(profiling_enabled : Boolean = true) {
     require_non_profile_context("format_profile_summary")
     val sb = new StringBuilder(4096)
     for ((msg, depth, count, sum, min, max) ← summarize_profile_data) {
-      sb.append((sum / 1000000.0D).formatted("%1$ 12.3f")).append(" / ").append(count.formatted("%1$ 7d")).append(" = ").
+      sb.append((sum / 1000000.0D).formatted("%1$ 12.3f")).append(" ms / ").append(count.formatted("%1$ 7d")).append(" = ").
         append((sum / 1000000.0D / count).formatted("%1$ 10.3f")).
         append(", min=").append((min / 1000000.0D).formatted("%1$ 10.3f")).
         append(", max=").append((max / 1000000.0D).formatted("%1$ 10.3f")).
@@ -218,13 +223,23 @@ case class Profiler(profiling_enabled : Boolean = true) {
 
   def print_profile_summary(out : PrintStream) : Unit = {
     require_non_profile_context("print_profile_summary")
-    out.print(format_profile_summary)
+    out.print(s"Profiling Summary of $name:\n$format_profile_summary")
+  }
+
+  def log_profile_summary(log : Logger) : Unit = {
+    require_non_profile_context("log_profile_summary")
+    log.debug(s"Profiling Summary of $name:\n$format_profile_summary")
+  }
+
+  def log_profile_summary(log : Logger, summary_name: String) : Unit = {
+    require_non_profile_context("log_profile_summary")
+    log.debug(s"Profiling Summary of $summary_name($name):\n$format_profile_summary")
   }
 
   def format_profile_data : StringBuilder = {
     require_non_profile_context("format_profile_data")
     val str = new StringBuilder(4096)
-    if (profiling_enabled) {
+    if (enabled) {
       for ((thread, ti) ← thread_infos) {
         str.append("\nTHREAD(").append(thread.getId).append("): ").append(thread.getName)
         str.append("[").append(thread.getThreadGroup).append("]\n")
@@ -241,14 +256,19 @@ case class Profiler(profiling_enabled : Boolean = true) {
   }
 
   def reset_profile_data() : Unit = {
-    require_non_profile_context("reset_profile_data")
     thread_infos.clear()
+  }
+
+  def log_profile_data(logger: Logger) = {
+    require_non_profile_context("log_profile_data")
+    if (enabled)
+      logger.debug(s"Profiling Data For $name:\n$format_profile_data")
   }
 
   def print_profile_data(out : PrintStream) = {
     require_non_profile_context("print_profile_data")
-    if (profiling_enabled) {
-      out.print(format_profile_data.toString())
+    if (enabled) {
+      out.print(s"Profiling Data For $name:\n$format_profile_data")
     }
   }
 
