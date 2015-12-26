@@ -26,7 +26,9 @@ import com.reactific.sbt.ProjectPlugin
 import sbt._
 import sbt.Keys._
 import scala.language.postfixOps
-import scoverage.{ScoverageKeys,ScoverageSbtPlugin}
+import scoverage.ScoverageSbtPlugin
+import scoverage.ScoverageSbtPlugin.ScoverageKeys._
+import org.scoverage.coveralls.Imports.CoverallsKeys._
 
 object HSPBuild extends Build {
 
@@ -47,9 +49,10 @@ object HSPBuild extends Build {
       codePackage := "com.reactific.hsp",
       libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.12",
       libraryDependencies +=  "ch.qos.logback" % "logback-classic" % "1.1.3" % "test",
-      ScoverageKeys.coverageFailOnMinimum := true,
-      ScoverageKeys.coverageExcludedPackages := classesIgnoredByScoverage,
-      ScoverageKeys.coverageMinimum := 90,
+      coverageFailOnMinimum := true,
+      coverageExcludedPackages := classesIgnoredByScoverage,
+      coverageMinimum := 85,
+      coverallsToken := Some("EXqKGCEQb6SrCQbdzxEWUcJlSkLCOlHHm"),
       logLevel := Level.Info
   )
 }
