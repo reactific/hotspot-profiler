@@ -43,6 +43,7 @@ lazy val root = sbt.Project("hotspot-profiler", file(".")).
     libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.25",
     libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
     libraryDependencies += "org.specs2" %% "specs2-core" % "3.9.5" % "test",
+    scalastyleConfig := file("project/scalastyle-config.xml"),
     // coverageFailOnMinimum := true,
     // coverageExcludedPackages := classesIgnoredByScoverage,
     // coverageMinimum := 85,

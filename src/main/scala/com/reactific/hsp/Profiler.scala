@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Reactific Software LLC. All Rights Reserved.
+ * Copyright © 2015-2017 Reactific Software LLC. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -8,8 +8,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -31,16 +31,24 @@ import scala.concurrent.{ExecutionContext, Future}
 object Profiler extends Profiler("Profiler", true)
 
 /** Profiler Module For Manual Code Instrumentation
- * This module provides thread aware profiling at microsecond level granularity with manually inserted code Instrumentation. You can instrument a
- * block of code by wrapping it in Profiling.profile("any name you like"). For example, like this:
- * {{{
- * Profiling.profile("Example Code") { "example code" }
- * }}}
- * The result of the Profiling.profile call will be whatever the block returns ("example code" in this case).
- * You can print the results out with print_profile_data or log it with log_profile_data. Once printed or logged, the data is reset
- * and a new capture starts. The printout is grouped by threads and nested Profiling.profile calls are accounted for.
- * Note that when profiling_enabled is false, there is almost zero overhead. In particular, expressions involving computing the argument to
- * profile method will not be computed because it is a functional by-name argument that is not evaluated if profiling is disabled.
+  * This module provides thread aware profiling at microsecond level
+  * granularity with manually inserted code Instrumentation. You can
+   * instrument a
+  * block of code by wrapping it in Profiling.profile("any name you like").
+  * For example, like this:
+  * {{{
+  * Profiling.profile("Example Code") { "example code" }
+  * }}}
+  * The result of the Profiling.profile call will be whatever the block returns
+  * ("example code" in this case).
+  * You can print the results out with print_profile_data or log it with
+  * log_profile_data. Once printed or logged, the data is reset and a new
+  * capture starts. The printout is grouped by threads and nested
+  * Profiling.profile calls are accounted for. Note that when profiling_enabled
+  * is false, there is almost zero overhead. In particular, expressions
+  * involving computing the argument to profile method will not be computed
+  * because it is a functional by-name argument that is not evaluated if
+  * profiling is disabled.
  */
 case class Profiler(name: String = "Default", enabled: Boolean = true) {
 
@@ -52,10 +60,10 @@ case class Profiler(name: String = "Default", enabled: Boolean = true) {
     depth: Int)
   private class ThreadInfo {
 
-    var profile_data: mutable.Queue[ProfileItem] = {
+    var profile_data: mutable.Queue[ProfileItem] = { // scalastyle:ignore
       mutable.Queue.empty[ProfileItem]
     }
-    var depth_tracker: Int = 0
+    var depth_tracker: Int = 0 // scalastyle:ignore
 
     def record(id: Int, t0: Long, t1: Long, what: String, depth: Int): Unit = {
       require(depth_tracker > 0)
@@ -91,7 +99,7 @@ case class Profiler(name: String = "Default", enabled: Boolean = true) {
     }
   }
 
-  private var id_counter: Int = 0
+  private var id_counter: Int = 0 // scalastyle:ignore
 
   @inline private def nextThreadInfo(): (ThreadInfo, Int, Int) = {
     val ti = tinfo.get()
@@ -125,8 +133,8 @@ case class Profiler(name: String = "Default", enabled: Boolean = true) {
   def profile[R](what: ⇒ String)(block: ⇒ R): R = {
     if (enabled) {
       val (ti, id, depth) = nextThreadInfo()
-      var t0 = 0L
-      var t1 = 0L
+      var t0 = 0L // scalastyle:ignore
+      var t1 = 0L // scalastyle:ignore
       try {
         t0 = System.nanoTime()
         val r: R = block // call-by-name
@@ -195,10 +203,14 @@ case class Profiler(name: String = "Default", enabled: Boolean = true) {
   def get_one_item(itemName: String): (Int, Double) = {
     require_non_profile_context("get_one_item")
     if (enabled) {
-      var count: Int = 0
-      var sum: Double = 0.0
-      for ((_, ti) ← thread_infos) {
-        for (info ← ti.profile_data if info.what == itemName) {
+      var count: Int = 0 // scalastyle:ignore
+      var sum: Double = 0.0 // scalastyle:ignore
+      for {
+        (_, ti) ← thread_infos
+      } {
+        for {
+          info ← ti.profile_data if info.what == itemName
+        } {
           count += 1
           sum += (info.t1 - info.t0)
         }
@@ -228,8 +240,12 @@ case class Profiler(name: String = "Default", enabled: Boolean = true) {
     require_non_profile_context("summarize_profile_data")
     val mb =
       new mutable.HashMap[(Int, String), (Int, Int, Double, Double, Double)]()
-    for ((_, ti) ← thread_infos) {
-      for (info ← ti.profile_data.sortBy(_.id)) {
+    for {
+      (_, ti) ← thread_infos
+    } {
+      for {
+        info ← ti.profile_data.sortBy(_.id)
+      } {
         val time_len: Double = (info.t1 - info.t0).toDouble
         mb.get(info.depth → info.what) match {
           case Some((_id, count, sum, min, max)) ⇒
@@ -261,8 +277,11 @@ case class Profiler(name: String = "Default", enabled: Boolean = true) {
 
   def format_profile_summary: String = {
     require_non_profile_context("format_profile_summary")
-    val sb = new StringBuilder(4096)
-    for ((msg, depth, count, sum, min, max) ← summarize_profile_data) {
+    val initialSize: Int = 4096
+    val sb = new StringBuilder(initialSize)
+    for {
+      (msg, depth, count, sum, min, max) ← summarize_profile_data
+    } {
       sb.append((sum / 1000000.0D).formatted("%1$ 12.3f"))
         .append(" ms / ")
         .append(count.formatted("%1$ 7d"))
@@ -298,9 +317,12 @@ case class Profiler(name: String = "Default", enabled: Boolean = true) {
 
   def format_profile_data: StringBuilder = {
     require_non_profile_context("format_profile_data")
-    val str = new StringBuilder(4096)
+    val initialSize: Int = 4096
+    val str = new StringBuilder(initialSize)
     if (enabled) {
-      for ((thread, ti) ← thread_infos) {
+      for {
+        (thread, ti) ← thread_infos
+      } {
         str
           .append("\nTHREAD(")
           .append(thread.getId)
@@ -329,8 +351,9 @@ case class Profiler(name: String = "Default", enabled: Boolean = true) {
 
   def log_profile_data(logger: Logger): Unit = {
     require_non_profile_context("log_profile_data")
-    if (enabled)
+    if (enabled) {
       logger.debug(s"Profiling Data For $name:\n$format_profile_data")
+    }
   }
 
   def print_profile_data(out: PrintStream): Unit = {
