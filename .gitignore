@@ -1,4 +1,3 @@
-*.class
 *.log
 .idea/
 # sbt specific
@@ -8,10 +7,9 @@
 dist/*
 target/
 lib_managed/
-src_managed/
 project/boot/
 project/plugins/project/
-
+/buildinfo.properties
 # Scala-IDE specific
 .scala_dependencies
 .worksheet

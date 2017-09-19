@@ -2,7 +2,7 @@ package com.reactific.hsp
 
 import java.lang.management.ManagementFactory
 
-import org.slf4j.{LoggerFactory, Logger}
+import org.slf4j.Logger
 import org.specs2.execute.{Failure, Skipped, Result}
 
 /** Test Tools For Profiler.
@@ -12,7 +12,8 @@ import org.specs2.execute.{Failure, Skipped, Result}
 trait ProfilerTestTools {
 
   /** Determine if the system is viable for doing timing tests */
-  private lazy val (suitableForTimingTests : Boolean , unsuitabilityReason : String) = {
+  private lazy val (suitableForTimingTests: Boolean,
+                    unsuitabilityReason: String) = {
     if (System.getenv("TRAVIS") != null) {
       false → "TRAVIS environment variable is present (Travis CI execution)"
     } else {
@@ -24,24 +25,25 @@ trait ProfilerTestTools {
     }
   }
 
-  def ifSuitableForTimingTest(name: String)( func: () ⇒ Result) : Result = {
+  def ifSuitableForTimingTest(name: String)(func: () ⇒ Result): Result = {
     if (suitableForTimingTests)
       func()
     else
-      Skipped(s"Test '$name' not run because system is unsuitable for timing tests because $unsuitabilityReason")
+      Skipped(
+        s"Test '$name' not run because system is unsuitable for timing tests because $unsuitabilityReason")
   }
 
   /** Profiler wrapper for doing a timed test */
   def timedTest(
-      maxNanoSeconds : Double,
-      name : String,
-      profiler : Profiler = Profiler,
-      logger : Option[Logger] = None,
-      print : Boolean = false
-  )(func : (Profiler) ⇒ Result ) : Result = {
+      maxNanoSeconds: Double,
+      name: String,
+      profiler: Profiler = Profiler,
+      logger: Option[Logger] = None,
+      print: Boolean = false
+  )(func: (Profiler) ⇒ Result): Result = {
     if (suitableForTimingTests) {
-      val result : Result = profiler.profile(name) { func(profiler) }
-      val (count, time) = Profiler.get_one_item(name)
+      val result: Result = profiler.profile(name) { func(profiler) }
+      val (_, time) = Profiler.get_one_item(name)
       logger match {
         case Some(log) ⇒
           profiler.log_profile_summary(log, name)
@@ -52,12 +54,14 @@ trait ProfilerTestTools {
         println()
       }
       if (time > maxNanoSeconds) {
-        Failure(s"Test '$name' took ${time}ns which exceeds the limit of ${maxNanoSeconds}ns")
+        Failure(
+          s"Test '$name' took ${time}ns which exceeds the limit of ${maxNanoSeconds}ns")
       } else {
         result
       }
     } else {
-      Skipped(s"Test '$name' not run because system is unsuitable for timing tests because $unsuitabilityReason")
+      Skipped(
+        s"Test '$name' not run because system is unsuitable for timing tests because $unsuitabilityReason")
     }
   }
 

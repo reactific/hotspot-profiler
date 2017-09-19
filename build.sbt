@@ -20,39 +20,32 @@
  * SOFTWARE.
  */
 
-import com.reactific.sbt.ProjectPlugin.autoImport._
-import com.reactific.sbt.ProjectPlugin
 
 import sbt._
 import sbt.Keys._
 import scala.language.postfixOps
-import scoverage.ScoverageSbtPlugin
-import scoverage.ScoverageSbtPlugin.ScoverageKeys._
-import org.scoverage.coveralls.Imports.CoverallsKeys._
 
-object HSPBuild extends Build {
-
-  val classesIgnoredByScoverage : String = Seq[String](
-    "<empty>", // Avoids warnings from scoverage
-    "EmptyTree$/null"
-  ).mkString(";")
+val classesIgnoredByScoverage : String = Seq[String](
+  "<empty>", // Avoids warnings from scoverage
+  "EmptyTree$/null"
+).mkString(";")
 
 
-  lazy val root = sbt.Project("hotspot-profiler", file(".")).
-    enablePlugins(ProjectPlugin,ScoverageSbtPlugin).
-    settings(
-      organization := "com.reactific",
-      copyrightHolder := "Reactific Software LLC",
-      copyrightYears := Seq(2015),
-      developerUrl := url("http://reactific.com/"),
-      titleForDocs := "Hot Spot Profiler",
-      codePackage := "com.reactific.hsp",
-      libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.12",
-      libraryDependencies +=  "ch.qos.logback" % "logback-classic" % "1.1.3" % "test",
-      coverageFailOnMinimum := true,
-      coverageExcludedPackages := classesIgnoredByScoverage,
-      coverageMinimum := 85,
-      coverallsToken := Some("EXqKGCEQb6SrCQbdzxEWUcJlSkLCOlHHm"),
-      logLevel := Level.Info
-  )
-}
+lazy val root = sbt.Project("hotspot-profiler", file(".")).
+  enablePlugins(ReactificPlugin/*, ScoverageSbtPlugin */).
+  settings(
+    organization := "com.reactific",
+    copyrightHolder := "Reactific Software LLC",
+    startYear := Some(2015),
+    developerUrl := url("http://reactific.com/"),
+    titleForDocs := "Hot Spot Profiler",
+    codePackage := "com.reactific.hsp",
+    libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.25",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
+    libraryDependencies += "org.specs2" %% "specs2-core" % "3.9.5" % "test",
+    // coverageFailOnMinimum := true,
+    // coverageExcludedPackages := classesIgnoredByScoverage,
+    // coverageMinimum := 85,
+    // coverallsToken := Some("EXqKGCEQb6SrCQbdzxEWUcJlSkLCOlHHm"),
+    logLevel := Level.Info
+)
